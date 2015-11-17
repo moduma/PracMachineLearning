@@ -1,0 +1,87 @@
+---
+title: "Practical Machine Learning Project"
+author: "Moses Oduma"
+date: "Monday, November 16, 2015"
+output: word_document
+---
+
+#Executive Summary
+Human Activity Recognition (HAR) has emerged as a key research area in the recent years thus gaining attention by the pervasive computing research community. This project uses a data collected from 6 enthusiasts who were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The data is made up of accelerometers on belt, forarm, arm and dumpbell. The objective of the project is to predict the manner in which they did the exercise, whether correctly or incorrectly. This was done using the "classe" variable in the training data set.
+
+#Data
+The training data for this project is available at https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+whereas the test data is available at https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+#Prediction Model
+The training data was inpected and columns containing nulls identified. These were later not used for building the prediction model. The columns containing the timestamps were also removed from the data. The column "user_name", "num_window" and "new_window" were also removed.
+The training data was split into 60% training set and 40% test set. The  The prediction model was built using random forest with cross validation (cv) resampling method. 
+The data was prepared as follows:
+
+```{r}
+library(caret)
+trainingF<-"E:/Oduma/DataScience/JHU/PracMachineLearning/Project/pml-training.csv"
+trainingfile<-read.csv(trainingF, header = TRUE, sep = ",",na.strings = c("NA","#DIV/0!"))
+
+#Select variable with no NA
+#Also remove columns "user_name","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","new_window","num_window"
+
+training1<-trainingfile[,names(trainingfile) %in% 
+                            c("roll_belt","pitch_belt","yaw_belt","total_accel_belt",
+                              "gyros_belt_x","gyros_belt_y","gyros_belt_z","accel_belt_x","accel_belt_y",
+                              "accel_belt_z","magnet_belt_x","magnet_belt_y", "magnet_belt_z","roll_arm",
+                              "pitch_arm","yaw_arm","total_accel_arm","gyros_arm_x","gyros_arm_y",
+                              "gyros_arm_z",
+                              "accel_arm_x","accel_arm_y","accel_arm_z",
+                              "magnet_arm_x","magnet_arm_y","magnet_arm_z","roll_dumbbell","pitch_dumbbell",
+                              "yaw_dumbbell","total_accel_dumbbell",
+                              "gyros_dumbbell_x","gyros_dumbbell_y","gyros_dumbbell_z","accel_dumbbell_x",
+                              "accel_dumbbell_y","accel_dumbbell_z","magnet_dumbbell_x","magnet_dumbbell_y",
+                              "magnet_dumbbell_z","roll_forearm","pitch_forearm","yaw_forearm",
+                              "total_accel_forearm",
+                              "gyros_forearm_x","gyros_forearm_y","gyros_forearm_z","accel_forearm_x",
+                              "accel_forearm_y",
+                              "accel_forearm_z","magnet_forearm_x","magnet_forearm_y","magnet_forearm_z",
+                              "classe")]
+
+#dim(training1)
+
+#Partition training data with 60% training case
+inTrain<-createDataPartition(training1$classe,p=0.6,list=FALSE)
+training<-training1[inTrain,]
+testing<-training1[-inTrain,]
+```
+
+The model was fit as follows which yielded the following statistics from the Confusion matrix:
+```{r}
+ctrl<-trainControl(method="cv")
+modFit<-train(classe~.,data=training,method="rf",trControl=ctrl,
+              tuneGrid=data.frame(mtry=8))
+
+C <- confusionMatrix(testing$classe, predict(modFit, testing))
+C
+```
+
+It is noted that the prediction has a balanced accuracy of 99.41% at 95% Confidence Interval.  Thus the expected out of sample error rate is about 0.59%.
+This model was then used to predict the "classe" of the test data. The test data was first processed in a similar manner in which the training set was processed before the split. The following R code shows this.
+
+```{r}
+testF<-"E:/Oduma/DataScience/JHU/PracMachineLearning/Project/pml-testing.csv"
+testfile<-read.csv(testF, header = TRUE, sep = ",",na.strings = c("NA","#DIV/0!"))
+
+test1<-testfile[,names(testfile) %in% 
+                    c("roll_belt","pitch_belt","yaw_belt","total_accel_belt",
+                      "gyros_belt_x","gyros_belt_y","gyros_belt_z","accel_belt_x","accel_belt_y","accel_belt_z","magnet_belt_x","magnet_belt_y",
+                      "magnet_belt_z","roll_arm","pitch_arm","yaw_arm","total_accel_arm","gyros_arm_x","gyros_arm_y","gyros_arm_z","accel_arm_x","accel_arm_y","accel_arm_z",
+                      "magnet_arm_x","magnet_arm_y","magnet_arm_z","roll_dumbbell","pitch_dumbbell","yaw_dumbbell","total_accel_dumbbell",
+                      "gyros_dumbbell_x","gyros_dumbbell_y","gyros_dumbbell_z","accel_dumbbell_x",
+                      "accel_dumbbell_y","accel_dumbbell_z","magnet_dumbbell_x","magnet_dumbbell_y",
+                      "magnet_dumbbell_z","roll_forearm","pitch_forearm","yaw_forearm","total_accel_forearm",
+                      "gyros_forearm_x","gyros_forearm_y","gyros_forearm_z","accel_forearm_x","accel_forearm_y",
+                      "accel_forearm_z","magnet_forearm_x","magnet_forearm_y","magnet_forearm_z")]
+
+pred<-predict(modFit, test1)
+pred
+```
+
+The predicted variables were them uploaded to the Autograder. All the predicted values were seen to be correct.
